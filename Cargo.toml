@@ -2,7 +2,10 @@
 name = "oci-util"
 version = "0.1.0"
 edition = "2021"
-
+license-file = "LICENSE"
+readme = "README.md"
+authors = ["网聚云联边缘计算团队"]
+description = "云网关OCI公共库"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
