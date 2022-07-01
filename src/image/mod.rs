@@ -1,6 +1,7 @@
 pub mod build;
 pub mod config;
 pub mod layer;
+pub mod manifest;
 
 use crate::filesystem::FileSystem;
 use anyhow::Result;

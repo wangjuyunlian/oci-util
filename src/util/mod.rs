@@ -3,16 +3,6 @@ use async_recursion::async_recursion;
 use log::{debug, warn};
 use std::path::PathBuf;
 
-pub fn get_sha256_digest(digest: &str) -> Result<String> {
-    let regex = regex::Regex::new("^sha256:(.*)$")?;
-    if let Some(capts) = regex.captures(digest) {
-        if let Some(digest) = capts.get(1) {
-            return Ok(digest.as_str().to_string());
-        }
-    }
-    bail!("unreache!")
-}
-
 pub async fn copy_dir(from: PathBuf, dest: PathBuf) -> Result<()> {
     if !from.exists() || from.is_file() {
         bail!("源文件夹不存在或非文件夹");
@@ -79,4 +69,24 @@ async fn copy_dir_detail(from: PathBuf, dest: PathBuf) -> Result<usize> {
     }
 
     Ok(file_num)
+}
+
+pub trait DigestPre {
+    fn sha256_pre(&self) -> String;
+
+    fn get_digest(&self) -> Result<String>;
+}
+impl DigestPre for String {
+    fn sha256_pre(&self) -> String {
+        format!("sha256:{}", self)
+    }
+    fn get_digest(&self) -> Result<String> {
+        let regex = regex::Regex::new("^[^:]+:(.*)$")?;
+        if let Some(capts) = regex.captures(self.as_str()) {
+            if let Some(digest) = capts.get(1) {
+                return Ok(digest.as_str().to_string());
+            }
+        }
+        bail!("unreache!")
+    }
 }

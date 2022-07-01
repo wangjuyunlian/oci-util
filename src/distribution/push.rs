@@ -1,11 +1,12 @@
 use crate::image::config::ConfigFileAndData;
+use crate::image::manifest::{load_layer, Manifest};
 use crate::image::Repositories;
+use crate::util::DigestPre;
 use anyhow::{anyhow, Result};
 use log::debug;
 use oci_distribution::client::{Config, ImageLayer};
 use oci_distribution::secrets::RegistryAuth;
 use oci_distribution::{manifest, Client, Reference};
-use std::collections::HashMap;
 
 pub async fn push(image: &Reference, auth: &RegistryAuth) -> Result<()> {
     // 读取images.json
@@ -14,16 +15,19 @@ pub async fn push(image: &Reference, auth: &RegistryAuth) -> Result<()> {
     // push
     debug!("开始查找本地镜像……");
     let repo = Repositories::init()?;
-    let config_digest = repo
+    let manifest_digest = repo
         .image_digest(&image)
-        .ok_or(anyhow!("本地未找到镜像{:?}", image))?;
-    debug!("加载镜像config文件……");
-    let config = ConfigFileAndData::load(config_digest)?;
-    debug!("加载镜像layer文件……");
-    let layers = config.load_layer()?;
-    let ConfigFileAndData { file: _, data } = config;
-    let annotations: Option<HashMap<String, String>> = Some(HashMap::new());
+        .ok_or(anyhow!("本地未找到镜像{:?}", image))?
+        .get_digest()?;
+    debug!("");
+    let image_manifest = Manifest::load(manifest_digest.as_str())?.to_oci_manifest()?;
 
+    debug!("加载镜像config文件……");
+    let config = ConfigFileAndData::load(&image_manifest.config.digest.get_digest()?)?;
+    let ConfigFileAndData { file: _, data } = config;
+
+    debug!("加载镜像layer文件……");
+    let layers = load_layer(&image_manifest.layers)?;
     let layers: Vec<ImageLayer> = layers.into_iter().map(|x| x.into()).collect();
 
     let config = Config {
@@ -32,8 +36,6 @@ pub async fn push(image: &Reference, auth: &RegistryAuth) -> Result<()> {
         annotations: None,
     };
 
-    let image_manifest = manifest::OciImageManifest::build(&layers, &config, annotations);
-    debug!("{}", image_manifest);
     let client_config = oci_distribution::client::ClientConfig {
         protocol: oci_distribution::client::ClientProtocol::Https,
         ..Default::default()

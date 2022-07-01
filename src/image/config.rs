@@ -1,8 +1,7 @@
 use crate::filesystem::FileSystem;
 use crate::image::build::config::instructions::Kind;
 use crate::image::build::config::BuildConfig;
-use crate::image::layer::LayerAndData;
-use anyhow::{anyhow, Context, Result};
+use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 
 pub struct ConfigFileAndData {
@@ -10,22 +9,12 @@ pub struct ConfigFileAndData {
     pub data: Vec<u8>,
 }
 impl ConfigFileAndData {
-    pub fn load(digest: &String) -> Result<Self> {
-        let config_path = FileSystem.image_sha256()?.join(digest);
+    pub fn load(digest: &str) -> Result<Self> {
+        let config_path = FileSystem.config_sha256()?.join(digest);
         let data = std::fs::read(&config_path)
             .with_context(|| format!("读取镜像config文件{:?}失败", config_path))?;
         let file: ConfigFile = serde_json::from_slice(&data)?;
         Ok(Self { file, data })
-    }
-
-    pub fn load_layer(&self) -> Result<Vec<LayerAndData>> {
-        let mut layers = Vec::with_capacity(self.file.rootf.diff_ids.len());
-        for desc_item in self.file.rootf.diff_ids.iter() {
-            let layer =
-                LayerAndData::load(desc_item).context(anyhow!("加载layer：{}失败", desc_item))?;
-            layers.push(layer);
-        }
-        Ok(layers)
     }
 }
 
@@ -38,7 +27,7 @@ pub struct ConfigFile {
 
 impl ConfigFile {
     pub fn load(digest: &String) -> Result<Self> {
-        let config_path = FileSystem.image_sha256()?.join(digest);
+        let config_path = FileSystem.config_sha256()?.join(digest);
         let data = std::fs::read(&config_path)
             .with_context(|| format!("读取镜像config文件{:?}失败", config_path))?;
         let file: ConfigFile = serde_json::from_slice(&data)?;

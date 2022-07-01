@@ -2,8 +2,9 @@ use crate::distribution::pull::pull;
 use crate::filesystem::FileSystem;
 use crate::image::config::ConfigFile;
 use crate::image::layer::tar_file::TarFileTy;
+use crate::image::manifest::Manifest;
 use crate::image::Repositories;
-use crate::util::get_sha256_digest;
+use crate::util::DigestPre;
 use anyhow::{anyhow, Error, Result};
 use log::{debug, info, warn};
 use oci_distribution::secrets::RegistryAuth;
@@ -20,15 +21,18 @@ pub async fn init(image: &Reference, auth: &RegistryAuth, force: bool) -> Result
     // 读取layer
     // 初始化容器的文件系统
     let repo = Repositories::init()?;
-    let config_digest = match repo.image_digest(&image) {
-        Some(digest) => digest.to_string(),
+    let manifest_digest = match repo.image_digest(&image) {
+        Some(digest) => digest.get_digest()?,
         None => {
             info!("本地未找到镜像{:?}，先拉取镜像！", image);
             pull(image, auth).await?
         }
     };
-    let path = FileSystem.container()?.join(&config_digest);
-    let config = ConfigFile::load(&config_digest)?;
+    let path = FileSystem.container()?.join(&manifest_digest);
+
+    let manifest = Manifest::load(manifest_digest.as_str())?.to_oci_manifest()?;
+
+    let config = ConfigFile::load(&manifest.config.digest.get_digest()?)?;
 
     let container = Container { path, config };
     if force {
@@ -68,11 +72,7 @@ impl Container {
         std::fs::create_dir_all(&self.path)?;
         for copy in config.rootf.diff_ids.as_slice() {
             debug!("read layer {:?}", copy);
-            let file = std::fs::File::open(
-                FileSystem
-                    .layer_blobs()?
-                    .join(get_sha256_digest(copy.as_str())?),
-            )?;
+            let file = std::fs::File::open(FileSystem.layer_blobs()?.join(copy.get_digest()?))?;
             let mut archive = tar::Archive::new(file);
             let entries = archive.entries().unwrap();
             for (_index, item) in entries.enumerate() {

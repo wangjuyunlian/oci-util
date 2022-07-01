@@ -1,10 +1,11 @@
 use crate::filesystem::FileSystem;
 use crate::image::Repositories;
-use crate::util::get_sha256_digest;
+use crate::util::DigestPre;
 use anyhow::{Context, Result};
-use log::debug;
+use log::{debug, warn};
 use oci_distribution::secrets::RegistryAuth;
 use oci_distribution::{Client, Reference};
+use sha256::digest_bytes;
 
 pub async fn pull(image: &Reference, auth: &RegistryAuth) -> Result<String> {
     // pull镜像清单
@@ -17,7 +18,7 @@ pub async fn pull(image: &Reference, auth: &RegistryAuth) -> Result<String> {
     let mut client = Client::new(client_config);
     let (manifest, _digest) = client.pull_image_manifest(&image, &auth).await?;
 
-    let config_digest = get_sha256_digest(manifest.config.digest.as_str())?;
+    let config_digest = manifest.config.digest.get_digest()?;
     if !FileSystem.exist_config(&config_digest)? {
         debug!("config[{}] is pulling……", config_digest);
         let mut out = Vec::new();
@@ -31,7 +32,7 @@ pub async fn pull(image: &Reference, auth: &RegistryAuth) -> Result<String> {
     }
 
     for item in manifest.layers.iter() {
-        let layer_digest = get_sha256_digest(item.digest.as_str())?;
+        let layer_digest = item.digest.get_digest()?;
         if !FileSystem.exist_layer(&layer_digest)? {
             debug!("layer[{}] is pulling……", layer_digest);
             let mut out = Vec::new();
@@ -45,8 +46,21 @@ pub async fn pull(image: &Reference, auth: &RegistryAuth) -> Result<String> {
         }
     }
     //
-    let mut repo = Repositories::init()?;
-    repo.update_and_save(&image, config_digest.clone())?;
+    let manifest_data = serde_json::to_vec(&manifest)?;
+    let manifest_digest = digest_bytes(manifest_data.as_slice());
+    let manifest_path = FileSystem
+        .manifest_sha256()
+        .and_then(|x| {
+            if let Err(e) = std::fs::create_dir_all(&x) {
+                warn!("创建文件夹{:?}失败{:?}", x, e);
+            }
+            Ok(x)
+        })?
+        .join(manifest_digest.as_str());
+    std::fs::write(manifest_path, manifest_data)?;
 
-    Ok(config_digest)
+    let mut repo = Repositories::init()?;
+    repo.update_and_save(&image, manifest_digest.sha256_pre())?;
+
+    Ok(manifest_digest)
 }

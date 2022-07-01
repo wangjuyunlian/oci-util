@@ -1,7 +1,7 @@
 pub mod tar_file;
 
 use crate::filesystem::FileSystem;
-use crate::util::get_sha256_digest;
+use crate::util::DigestPre;
 use anyhow::{anyhow, Context, Result};
 use oci_distribution::client::ImageLayer;
 
@@ -44,20 +44,13 @@ pub struct LayerAndData {
 // }
 
 impl LayerAndData {
-    pub fn load(desc_digest: &String) -> Result<Self> {
-        // let path = FileSystem.layer_contents()?.join(desc_digest);
-        // let desc: Descriptor = serde_json::from_reader(
-        //     std::fs::File::open(&path).context(anyhow!("加载{:?}失败", path))?,
-        // )?;
-
-        // let layer_digest = get_sha256_digest(desc.digest().as_str())
-        //     .context(anyhow!("获取sha256【{:?}】摘要失败", desc.digest()))?;
-        let layer_digest = get_sha256_digest(desc_digest.as_str())?;
+    pub fn load(desc_digest: &String, media_type: String) -> Result<Self> {
+        let layer_digest = desc_digest.get_digest()?;
         let layer_path = FileSystem.layer_blobs()?.join(&layer_digest);
         let data = std::fs::read(&layer_path).context(anyhow!("加载{:?}失败", layer_path))?;
         Ok(Self {
             data,
-            media_type: LAYER_MEDIA_TYPE.to_string(), // layer: desc.into(),
+            media_type, // layer: desc.into(),
         })
     }
 }

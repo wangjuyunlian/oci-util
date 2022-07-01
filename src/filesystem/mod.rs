@@ -10,6 +10,9 @@ pub struct FileSystem;
 ///       ├──imagedb
 ///       │  ├──images.json
 ///       │  ├──sha256
+///       │  │  ├──image的manifest文件；文件名为文件的sha256摘要
+///       ├──configdb
+///       │  ├──sha256
 ///       │  │  ├──image的config文件；文件名为文件的sha256摘要
 ///       ├──layerdb
 ///       │  ├──contents?（待实现）
@@ -18,7 +21,7 @@ pub struct FileSystem;
 ///       │  │  ├──sha256
 ///       │  │  │  ├──image的layer文件
 ///       ├──containerdb
-///       │  ├──image的config文件的sha256
+///       │  ├──image的manifest文件的sha256
 ///       │  │  ├──image展开后的文件目录
 ///
 impl FileSystem {
@@ -50,8 +53,13 @@ impl FileSystem {
         std::fs::create_dir_all(&path)?;
         Ok(path)
     }
-    pub fn image_sha256(&self) -> Result<PathBuf> {
+    pub fn manifest_sha256(&self) -> Result<PathBuf> {
         let path = self.home()?.join("imagedb").join("sha256");
+        std::fs::create_dir_all(&path)?;
+        Ok(path)
+    }
+    pub fn config_sha256(&self) -> Result<PathBuf> {
+        let path = self.home()?.join("configdb").join("sha256");
         std::fs::create_dir_all(&path)?;
         Ok(path)
     }
@@ -67,7 +75,7 @@ impl FileSystem {
     }
 
     pub fn exist_config(&self, sha256_digest: &String) -> Result<bool> {
-        let config_path = self.image_sha256()?;
+        let config_path = self.config_sha256()?;
         Ok(config_path.join(sha256_digest).exists())
     }
     pub fn exist_layer(&self, sha256_digest: &String) -> Result<bool> {
@@ -80,8 +88,12 @@ impl FileSystem {
     }
 
     pub fn save_config(&self, sha256_digest: &String, data: &[u8]) -> Result<()> {
-        let config_path = self.image_sha256()?;
+        let config_path = self.config_sha256()?;
         Ok(std::fs::write(config_path.join(sha256_digest), data)?)
+    }
+    pub fn save_manifest(&self, sha256_digest: &String, data: &[u8]) -> Result<()> {
+        let manifest_path = self.manifest_sha256()?;
+        Ok(std::fs::write(manifest_path.join(sha256_digest), data)?)
     }
     pub fn save_layer(&self, sha256_digest: &String, data: &[u8]) -> Result<()> {
         let config_path = self.layer_blobs()?;
