@@ -9,13 +9,6 @@ use log::warn;
 use oci_distribution::Reference;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-///    "hello-world": {
-//       "hello-world:latest": "sha256:feb5d9fea6a5e9606aa995e879d862b825965ba48de054caab5ef356dc6b3412",
-//       "hello-world@sha256:80f31da1ac7b312ba29d65080fddf797dd76acfb870e677f390d5acba9741b17": "sha256:feb5d9fea6a5e9606aa995e879d862b825965ba48de054caab5ef356dc6b3412"
-//     },
-//     "repo.netfuse.cn/moss/hello-wasm": {
-//       "repo.netfuse.cn/moss/hello-wasm@sha256:f04ed4a5e96eeadb8fe1146f9376f6b78e9bc7ad15a1f422bab69a10f459134d": "sha256:f40da01ab0076f721c4be69a33b3d577f2cef2bad71da6aac163e8aa0b46e737"
-//     }
 #[derive(Serialize, Deserialize, Default)]
 pub struct Repositories {
     #[serde(default)]
