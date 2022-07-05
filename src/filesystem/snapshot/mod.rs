@@ -17,6 +17,7 @@ use std::ffi::OsString;
 use std::hash::Hasher;
 use std::path::{Path, PathBuf};
 use std::{fs, io};
+use tar::HeaderMode;
 use tempfile::tempdir;
 
 #[derive(Clone)]
@@ -375,6 +376,7 @@ impl ChangeSet {
             };
 
             let mut archive = tar::Builder::new(&mut layer_writer);
+            archive.mode(HeaderMode::Deterministic);
 
             // Add an entry for the `dest_dir` (and any of its parent) so that ownership (and other
             // metadata) of `source_dir` is maintained. If not done then there are issues with non-root
