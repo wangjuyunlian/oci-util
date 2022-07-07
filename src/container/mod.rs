@@ -16,6 +16,7 @@ use std::path::PathBuf;
 /// 初始化镜像
 /// 如果本地不存在该镜像，则先pull再初始化。
 pub async fn init(image: &Reference, auth: &RegistryAuth, force: bool) -> Result<Container> {
+    debug!("初始化镜像: {:?}", image);
     // 判断是否已存在该容器：
     // 读取config
     // 读取layer
